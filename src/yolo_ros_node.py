@@ -1,4 +1,11 @@
 #!/usr/bin/env python
+
+import os
+# os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+import tensorflow as tf
+from TensorFlow_Yolo.yolov3.utils import detect_image, detect_realtime, detect_video, Load_Yolo_model, detect_video_realtime_mp
+from TensorFlow_Yolo.yolov3.configs import *
+
 from __future__ import print_function
 
 import roslib
@@ -12,11 +19,9 @@ from tensorflow.python.client import device_lib
 import numpy as np
 import time
 
-import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-import tensorflow as tf
-from yolov3.utils import detect_image, detect_realtime, detect_video, Load_Yolo_model, detect_video_realtime_mp
-from yolov3.configs import *
+
+
+
 
 class image_converter:
 

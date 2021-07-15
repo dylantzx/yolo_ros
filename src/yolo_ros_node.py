@@ -14,6 +14,7 @@ import rospy
 import cv2
 from std_msgs.msg import String
 from sensor_msgs.msg import Image
+from yolo_ros.msg import Bbox_values
 
 from tensorflow.python.client import device_lib
 import numpy as np
@@ -23,7 +24,7 @@ import time
 class image_converter:
 
   def __init__(self):
-    # self.image_pub = rospy.Publisher("bbox_output",Bbox_values, queue_size=10)
+    self.image_pub = rospy.Publisher("bbox_output",Bbox_values, queue_size=10)
     self.image_sub = rospy.Subscriber("image_topic",Image,self.callback)
     self.cv_img = None
 
@@ -91,34 +92,27 @@ def main(args):
     # if prediction not within thresholds, bbox list will be empty
     # print(f"{len(bboxes) != 0}")
     if len(bboxes) !=0:
+      bbox_pub = Bbox_values()
       for i, bbox in enumerate(bboxes):
         coor = np.array(bbox[:4], dtype=np.int32)
         x1, y1, x2, y2 = coor[0], coor[1], coor[2], coor[3]
         w = x2 - x1
         h = y2 - y1
         score = bbox[4]
-      print(f"Bbox values: {x1, y1, w, h} Score: {round(score,2)}")
+      # print(f"Bbox values: {x1, y1, w, h} Score: {round(score,2)}")
+      bbox_pub.x = x1.item()
+      bbox_pub.y = y1.item()
+      bbox_pub.w = w.item()
+      bbox_pub.h = h.item()
+      ic.image_pub.publish(bbox_pub)
 
     frame = draw_bbox(ic.cv_img, bboxes, CLASSES=TRAIN_CLASSES, rectangle_colors=(255,0,0))
     cv2.putText(frame, f"FPS: {fps:.2f}", (7,40), cv2.FONT_HERSHEY_COMPLEX, 1.4, (100, 255, 0), 3, cv2.LINE_AA)
 
-    # # publish bbox values when they are available
-    # # bbox values are in y1,x1,y2,x2
-    # # have to reformat to x,y,w,h
-    # if len(r['rois']):
-    #   bbox_str = np.array_str(r['rois'][0])
-    #   bbox_ls = bbox_str[1:-1].strip().replace("   ", " ").replace("  ", " ").split(" ")
-    #   bbox = Bbox_values()
-    #   bbox.x = int(bbox_ls[1])
-    #   bbox.y = int(bbox_ls[0])
-    #   bbox.w = int(bbox_ls[3]) - int(bbox_ls[1])
-    #   bbox.h = int(bbox_ls[2]) - int(bbox_ls[0])
-    #   ic.image_pub.publish(bbox)
-
     cv2.imshow("Prediction", frame)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
-      # cv2.destroyAllWindows()
+      cv2.destroyAllWindows()
       break
 
   cv2.destroyAllWindows()

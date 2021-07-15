@@ -2,9 +2,10 @@
 from __future__ import print_function
 
 import os
+# 0 for GPU, -1 for CPU
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 import tensorflow as tf
-from TensorFlow_Yolo.yolov3.utils import image_preprocess, postprocess_boxes, nms, draw_bbox, Load_Yolo_model, detect_image
+from TensorFlow_Yolo.yolov3.utils import image_preprocess, postprocess_boxes, nms, draw_bbox, Load_Yolo_model, Create_Yolo
 from TensorFlow_Yolo.yolov3.configs import *
 
 import roslib
@@ -77,26 +78,19 @@ def main(args):
   rospy.init_node('drone_detector')
   ic = image_converter()
   yolo=Load_Yolo_model()
+
   input_size = YOLO_INPUT_SIZE
-  score_threshold=0.3
-  iou_threshold=0.45
-  count = 0
+  score_threshold=0.8
+  iou_threshold=0.1
   fps = FPS()
 
   while not rospy.is_shutdown():
-    
+
     image_data = image_preprocess(np.copy(ic.cv_img), [input_size, input_size])
     image_data = image_data[np.newaxis, ...].astype(np.float32)
 
-    if YOLO_FRAMEWORK == "tf":
-          pred_bbox = yolo.predict(image_data)
-    elif YOLO_FRAMEWORK == "trt":
-        batched_input = tf.constant(image_data)
-        result = yolo(batched_input)
-        pred_bbox = []
-        for key, value in result.items():
-            value = value.numpy()
-            pred_bbox.append(value)
+    batched_input = tf.constant(image_data)
+    pred_bbox = yolo(batched_input)
 
     pred_bbox = [tf.reshape(x, (-1, tf.shape(x)[-1])) for x in pred_bbox]
     pred_bbox = tf.concat(pred_bbox, axis=0)
@@ -105,13 +99,13 @@ def main(args):
     bboxes = nms(bboxes, iou_threshold, method='nms')
 
     # get bbox values
-    for i, bbox in enumerate(bboxes):
-      coor = np.array(bbox[:4], dtype=np.int32)
-      x1, y1, x2, y2 = coor[0], coor[1], coor[2], coor[3]
-      w = x2 - x1
-      h = y2 - y1
-      score = bbox[4]
-    print(f"Bbox values: {x1, y1, w, h} Score: {round(score,2)}")
+    # for i, bbox in enumerate(bboxes):
+    #   coor = np.array(bbox[:4], dtype=np.int32)
+    #   x1, y1, x2, y2 = coor[0], coor[1], coor[2], coor[3]
+    #   w = x2 - x1
+    #   h = y2 - y1
+    #   score = bbox[4]
+    # print(f"Bbox values: {x1, y1, w, h} Score: {round(score,2)}")
 
     frame = draw_bbox(ic.cv_img, bboxes, CLASSES=TRAIN_CLASSES, rectangle_colors=(255,0,0))
 
@@ -135,7 +129,7 @@ def main(args):
     cv2.imshow("Prediction", frame)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
-      cv2.destroyAllWindows()
+      # cv2.destroyAllWindows()
       break
 
   cv2.destroyAllWindows()

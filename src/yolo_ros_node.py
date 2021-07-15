@@ -51,27 +51,6 @@ class image_converter:
     else:
         self.cv_img = cv2.cvtColor(self.cv_img, cv2.COLOR_RGB2BGR)
 
-class FPS:
-
-  def __init__(self):
-    self.prev_frame_time = 0
-    self.curr_frame_time = 0
-    self.sum_of_fps = 0
-    self.count = 0
-    self.fps =0
-
-  def calculateFPS(self):
-    self.curr_frame_time = time.time()
-    self.fps = 1/ (self.curr_frame_time - self.prev_frame_time)
-    self.count+=1
-    self.sum_of_fps += self.fps
-    self.prev_frame_time = self.curr_frame_time
-
-  def getAvgFPS(self, img):
-    avg_fps= round(self.sum_of_fps/self.count,2)
-    # print(f"-----------------Avg FPS: {round(self.sum_of_fps/self.count,2)}-----------------")
-    cv2.putText(img, f"FPS: {avg_fps}", (7,40), cv2.FONT_HERSHEY_COMPLEX, 1.4, (100, 255, 0), 3, cv2.LINE_AA)
-
 def main(args):
   
   print(device_lib.list_local_devices())
@@ -82,36 +61,46 @@ def main(args):
   input_size = YOLO_INPUT_SIZE
   score_threshold=0.8
   iou_threshold=0.1
-  fps = FPS()
+
+  times = []
 
   while not rospy.is_shutdown():
 
     image_data = image_preprocess(np.copy(ic.cv_img), [input_size, input_size])
     image_data = image_data[np.newaxis, ...].astype(np.float32)
 
+    # t1 and t2 used to calculate the time taken to predict a bbox
+    t1 = time.time()
     batched_input = tf.constant(image_data)
     pred_bbox = yolo(batched_input)
+    t2 = time.time()
+
+    # Store the time taken to predict and get the average of the last 20 predictions
+    times.append(t2-t1)
+    times = times[-20:]
+    ms = sum(times)/len(times)*1000
+    fps = 1000 / ms
 
     pred_bbox = [tf.reshape(x, (-1, tf.shape(x)[-1])) for x in pred_bbox]
     pred_bbox = tf.concat(pred_bbox, axis=0)
 
     bboxes = postprocess_boxes(pred_bbox, ic.cv_img, input_size, score_threshold)
     bboxes = nms(bboxes, iou_threshold, method='nms')
-
-    # get bbox values
-    # for i, bbox in enumerate(bboxes):
-    #   coor = np.array(bbox[:4], dtype=np.int32)
-    #   x1, y1, x2, y2 = coor[0], coor[1], coor[2], coor[3]
-    #   w = x2 - x1
-    #   h = y2 - y1
-    #   score = bbox[4]
-    # print(f"Bbox values: {x1, y1, w, h} Score: {round(score,2)}")
+    
+    # get bbox values that are within the thresholds
+    # if prediction not within thresholds, bbox list will be empty
+    # print(f"{len(bboxes) != 0}")
+    if len(bboxes) !=0:
+      for i, bbox in enumerate(bboxes):
+        coor = np.array(bbox[:4], dtype=np.int32)
+        x1, y1, x2, y2 = coor[0], coor[1], coor[2], coor[3]
+        w = x2 - x1
+        h = y2 - y1
+        score = bbox[4]
+      print(f"Bbox values: {x1, y1, w, h} Score: {round(score,2)}")
 
     frame = draw_bbox(ic.cv_img, bboxes, CLASSES=TRAIN_CLASSES, rectangle_colors=(255,0,0))
-
-    # Calculate FPS
-    fps.calculateFPS()
-    fps.getAvgFPS(frame)
+    cv2.putText(frame, f"FPS: {fps:.2f}", (7,40), cv2.FONT_HERSHEY_COMPLEX, 1.4, (100, 255, 0), 3, cv2.LINE_AA)
 
     # # publish bbox values when they are available
     # # bbox values are in y1,x1,y2,x2

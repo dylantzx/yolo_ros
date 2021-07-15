@@ -1,12 +1,11 @@
 #!/usr/bin/env python
+from __future__ import print_function
 
 import os
-# os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 import tensorflow as tf
-from TensorFlow_Yolo.yolov3.utils import detect_image, detect_realtime, detect_video, Load_Yolo_model, detect_video_realtime_mp
+from TensorFlow_Yolo.yolov3.utils import image_preprocess, postprocess_boxes, nms, draw_bbox, Load_Yolo_model, detect_image
 from TensorFlow_Yolo.yolov3.configs import *
-
-from __future__ import print_function
 
 import roslib
 import sys
@@ -18,9 +17,6 @@ from sensor_msgs.msg import Image
 from tensorflow.python.client import device_lib
 import numpy as np
 import time
-
-
-
 
 
 class image_converter:
@@ -80,38 +76,67 @@ def main(args):
   print(device_lib.list_local_devices())
   rospy.init_node('drone_detector')
   ic = image_converter()
+  yolo=Load_Yolo_model()
+  input_size = YOLO_INPUT_SIZE
+  score_threshold=0.3
+  iou_threshold=0.45
+  count = 0
   fps = FPS()
 
   while not rospy.is_shutdown():
+    
+    image_data = image_preprocess(np.copy(ic.cv_img), [input_size, input_size])
+    image_data = image_data[np.newaxis, ...].astype(np.float32)
 
-    if ic.cv_img is not None:
-      results = model.detect([ic.cv_img], verbose=1)
+    if YOLO_FRAMEWORK == "tf":
+          pred_bbox = yolo.predict(image_data)
+    elif YOLO_FRAMEWORK == "trt":
+        batched_input = tf.constant(image_data)
+        result = yolo(batched_input)
+        pred_bbox = []
+        for key, value in result.items():
+            value = value.numpy()
+            pred_bbox.append(value)
 
-      # Calculate FPS
-      fps.calculateFPS()
-      fps.getAvgFPS(ic.cv_img)
+    pred_bbox = [tf.reshape(x, (-1, tf.shape(x)[-1])) for x in pred_bbox]
+    pred_bbox = tf.concat(pred_bbox, axis=0)
 
-      # Visualize results
-      r = results[0]
-      masked_image = display_instances(ic.cv_img, r['rois'], r['masks'], r['class_ids'], class_names, r['scores'])
+    bboxes = postprocess_boxes(pred_bbox, ic.cv_img, input_size, score_threshold)
+    bboxes = nms(bboxes, iou_threshold, method='nms')
 
-      # publish bbox values when they are available
-      # bbox values are in y1,x1,y2,x2
-      # have to reformat to x,y,w,h
-    #   if len(r['rois']):
-    #     bbox_str = np.array_str(r['rois'][0])
-    #     bbox_ls = bbox_str[1:-1].strip().replace("   ", " ").replace("  ", " ").split(" ")
-    #     bbox = Bbox_values()
-    #     bbox.x = int(bbox_ls[1])
-    #     bbox.y = int(bbox_ls[0])
-    #     bbox.w = int(bbox_ls[3]) - int(bbox_ls[1])
-    #     bbox.h = int(bbox_ls[2]) - int(bbox_ls[0])
-    #     ic.image_pub.publish(bbox)
+    # get bbox values
+    for i, bbox in enumerate(bboxes):
+      coor = np.array(bbox[:4], dtype=np.int32)
+      x1, y1, x2, y2 = coor[0], coor[1], coor[2], coor[3]
+      w = x2 - x1
+      h = y2 - y1
+      score = bbox[4]
+    print(f"Bbox values: {x1, y1, w, h} Score: {round(score,2)}")
 
-      cv2.imshow("Masked Image", ic.cv_img)
+    frame = draw_bbox(ic.cv_img, bboxes, CLASSES=TRAIN_CLASSES, rectangle_colors=(255,0,0))
 
-      if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+    # Calculate FPS
+    fps.calculateFPS()
+    fps.getAvgFPS(frame)
+
+    # # publish bbox values when they are available
+    # # bbox values are in y1,x1,y2,x2
+    # # have to reformat to x,y,w,h
+    # if len(r['rois']):
+    #   bbox_str = np.array_str(r['rois'][0])
+    #   bbox_ls = bbox_str[1:-1].strip().replace("   ", " ").replace("  ", " ").split(" ")
+    #   bbox = Bbox_values()
+    #   bbox.x = int(bbox_ls[1])
+    #   bbox.y = int(bbox_ls[0])
+    #   bbox.w = int(bbox_ls[3]) - int(bbox_ls[1])
+    #   bbox.h = int(bbox_ls[2]) - int(bbox_ls[0])
+    #   ic.image_pub.publish(bbox)
+
+    cv2.imshow("Prediction", frame)
+
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+      cv2.destroyAllWindows()
+      break
 
   cv2.destroyAllWindows()
 

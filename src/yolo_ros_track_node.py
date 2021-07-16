@@ -57,7 +57,7 @@ class image_converter:
             self.cv_img = cv2.cvtColor(self.cv_img, cv2.COLOR_RGB2BGR)
 
 def main(args):
-  
+
     print(device_lib.list_local_devices())
     rospy.init_node('drone_detector')
     ic = image_converter()

@@ -109,52 +109,50 @@ def main(args):
         
         print(f"{bboxes}")
 
-        if len(bboxes) !=0:
-            boxes, scores, names = [], [], []
-            for bbox in bboxes:
-                if len(Track_only) !=0 and NUM_CLASS[int(bbox[5])] in Track_only or len(Track_only) == 0:
-                    boxes.append([bbox[0].astype(int), bbox[1].astype(int), bbox[2].astype(int)-bbox[0].astype(int), bbox[3].astype(int)-bbox[1].astype(int)])
-                    scores.append(bbox[4])
-                    names.append(NUM_CLASS[int(bbox[5])])
+        boxes, scores, names = [], [], []
+        for bbox in bboxes:
+            if len(Track_only) !=0 and NUM_CLASS[int(bbox[5])] in Track_only or len(Track_only) == 0:
+                boxes.append([bbox[0].astype(int), bbox[1].astype(int), bbox[2].astype(int)-bbox[0].astype(int), bbox[3].astype(int)-bbox[1].astype(int)])
+                scores.append(bbox[4])
+                names.append(NUM_CLASS[int(bbox[5])])
 
-            print(f"{boxes}, {scores}, {names}")
+        # Obtain all the detections for the given frame.
+        boxes = np.array(boxes) 
+        names = np.array(names)
+        scores = np.array(scores)
+        
+        features = np.array(encoder(ic.cv_img, boxes))
+        detections = [Detection(bbox, score, class_name, feature) for bbox, score, class_name, feature in zip(boxes, scores, names, features)]
 
-            # Obtain all the detections for the given frame.
-            boxes = np.array(boxes) 
-            names = np.array(names)
-            scores = np.array(scores)
-            features = np.array(encoder(ic.cv_img, boxes))
-            detections = [Detection(bbox, score, class_name, feature) for bbox, score, class_name, feature in zip(boxes, scores, names, features)]
+        # Pass detections to the deepsort object and obtain the track information.
+        tracker.predict()
+        tracker.update(detections)
 
-            # Pass detections to the deepsort object and obtain the track information.
-            tracker.predict()
-            tracker.update(detections)
+        # Obtain info from the tracks
+        tracked_bboxes = []
+        for track in tracker.tracks:
+            if not track.is_confirmed() or track.time_since_update > 5:
+                continue 
+            bbox = track.to_tlbr() # Get the corrected/predicted bounding box
+            class_name = track.get_class() #Get the class name of particular object
+            tracking_id = track.track_id # Get the ID for the particular track
+            index = key_list[val_list.index(class_name)] # Get predicted object index by object name
+            tracked_bboxes.append(bbox.tolist() + [tracking_id, index]) # Structure data, that we could use it with our draw_bbox function
 
-            # Obtain info from the tracks
-            tracked_bboxes = []
-            for track in tracker.tracks:
-                if not track.is_confirmed() or track.time_since_update > 5:
-                    continue 
-                bbox = track.to_tlbr() # Get the corrected/predicted bounding box
-                class_name = track.get_class() #Get the class name of particular object
-                tracking_id = track.track_id # Get the ID for the particular track
-                index = key_list[val_list.index(class_name)] # Get predicted object index by object name
-                tracked_bboxes.append(bbox.tolist() + [tracking_id, index]) # Structure data, that we could use it with our draw_bbox function
+        frame = draw_bbox(ic.cv_img, tracked_bboxes, CLASSES=TRAIN_CLASSES, rectangle_colors=(255,0,0), tracking=True)
+        
+        t3 = time.time()
+        times_2.append(t3-t1)
+        times_2 = times_2[-20:]
+        fps2 = 1000 / (sum(times_2)/len(times_2)*1000)
+        
+        cv2.putText(frame, f"FPS: {fps:.2f}", (7,40), cv2.FONT_HERSHEY_COMPLEX, 1.4, (100, 255, 0), 3, cv2.LINE_AA)
 
-            frame = draw_bbox(ic.cv_img, tracked_bboxes, CLASSES=TRAIN_CLASSES, rectangle_colors=(255,0,0), tracking=True)
-            
-            t3 = time.time()
-            times_2.append(t3-t1)
-            times_2 = times_2[-20:]
-            fps2 = 1000 / (sum(times_2)/len(times_2)*1000)
-            
-            cv2.putText(frame, f"FPS: {fps:.2f}", (7,40), cv2.FONT_HERSHEY_COMPLEX, 1.4, (100, 255, 0), 3, cv2.LINE_AA)
+        cv2.imshow("Prediction", frame)
 
-            cv2.imshow("Prediction", frame)
-
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                cv2.destroyAllWindows()
-                break
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            cv2.destroyAllWindows()
+            break
 
     cv2.destroyAllWindows()
 

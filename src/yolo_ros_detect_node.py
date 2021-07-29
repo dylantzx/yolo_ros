@@ -30,7 +30,7 @@ def main(args):
   yolo=Load_Yolo_model()
 
   input_size = YOLO_INPUT_SIZE
-  score_threshold=0.3
+  score_threshold=0.8
   iou_threshold=0.45
 
   while not rospy.is_shutdown():

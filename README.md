@@ -87,18 +87,14 @@ You can also install them individually with `pip install <requirement>` in your 
     
     ```roslaunch yolo_ros yolo_detect.launch```
 
-<!-- ![Object detection only](images/maskRCNN_detect.png) -->
-
 3. To run object detection with tracking, run the launch file
     
     ```roslaunch yolo_ros yolo_track.launch```
 
-<!-- ![Object detection with tracking](images/maskRCNN_track.png) -->
-
 ## Training YOLO 
 ---
 
-To train the YOLO model on your own custom dataset, you can refer to [this repository](https://github.com/pythonlessons/TensorFlow-2.x-YOLOv3).
+To train the YOLO model on your own custom dataset, you can refer to [pythonlessons/TensorFlow-2.x-YOLOv3](https://github.com/pythonlessons/TensorFlow-2.x-YOLOv3).
 
 Place your images for training, validation and testing under `TensorFlow_Yolo/IMAGES/`
 

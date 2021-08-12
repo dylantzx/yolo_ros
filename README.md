@@ -116,6 +116,8 @@ After getting your checkpoint files from training, place them under the `TensorF
 3. Go into the script that you will be using, for example `yolo_ros_detect.py` and change lines 32 -34 if required
 4. Go to the launch file that you will be using
 5. Remap the `image_topic` to your own ROStopic that is publishing the images
+6. Go into `TensorFlow_Yolo/yolov3/utils.py` and edit `sys.path.append('</abs/path/to/TensorFlow_Yolo>)` with your own absolute path to the repository. 
+7. In `TensorFlow_Yolo/yolov3/utils.py`, also edit `checkpoint_path` with your own absolute path to the checkpoint folder. 
 
 ## Evaluation
 ---

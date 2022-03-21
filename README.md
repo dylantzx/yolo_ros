@@ -1,7 +1,7 @@
 # yolo_ros
 
 ## Prerequisites
----
+
 - Ubuntu LTS 18.04
 
 - ROS Melodic 
@@ -27,7 +27,6 @@
 - CuDNN 
 
 ## About
----
 
 This is a ROS package of [YOLO with Tensorflow 2.x](https://github.com/pythonlessons/TensorFlow-2.x-YOLOv3) with [DeepSORT](https://github.com/nwojke/deep_sort) for object detection and object tracking.
 
@@ -36,7 +35,6 @@ It contains ROS nodes for object detection and object detection with tracking.
 The current repository is for a drone tracking another drone on PX4 but you should be able to adapt it for your own use case.
 
 ## Installation Guide
----
 
 ### NVIDIA Drivers, CUDA and CuDNN 
 
@@ -60,12 +58,13 @@ git clone https://github.com/dylantzx/yolo_ros.git --recursive
 cd yolo_ros/src/TensorFlow_Yolo
 conda activate <your_env>
 pip install -r requirements.txt
+catkin build yolo_ros
+source ~/catkin_ws/devel/setup.bash
 ```
 
 You can also install them individually with `pip install <requirement>` in your virtual environment 
 
 ## Getting Started
----
 
 [FPS.py](https://github.com/dylantzx/mask_rcnn_ros/blob/main/src/FPS.py) - Contains a simple FPS class for FPS calculation 
 
@@ -78,7 +77,7 @@ You can also install them individually with `pip install <requirement>` in your 
 [yolo_ros_track_node.py](https://github.com/dylantzx/yolo_ros/blob/main/src/yolo_ros_track_node.py) - Main script that runs YOLO and TensorFlow 2.x with ROS for object detection with tracking.
 
 ## How to run codes
----
+
 1. Go into your virtual environment
 
     ```conda activate <your_env>```
@@ -92,7 +91,6 @@ You can also install them individually with `pip install <requirement>` in your 
     ```roslaunch yolo_ros yolo_track.launch```
 
 ## Training YOLO 
----
 
 To train the YOLO model on your own custom dataset, you can refer to [pythonlessons/TensorFlow-2.x-YOLOv3](https://github.com/pythonlessons/TensorFlow-2.x-YOLOv3).
 
@@ -101,7 +99,6 @@ Place your images for training, validation and testing under `TensorFlow_Yolo/IM
 After getting your checkpoint files from training, place them under the `TensorFlow_Yolo/checkpoints` directory.
 
 ## Modifying to use it on your own dataset
----
 
 1. Go to `TensorFlow_Yolo/yolov3/configs.py`.
 2. Ensure that the configs are suited to your use case. The important ones are:
@@ -120,7 +117,7 @@ After getting your checkpoint files from training, place them under the `TensorF
 7. In `TensorFlow_Yolo/yolov3/utils.py`, also edit `checkpoint_path` with your own absolute path to the checkpoint folder. 
 
 ## Evaluation
----
+
 The evaluation script is found in the `TensorFlow_Yolo/evaluation/main.py`.
 
 Change the path and names on lines 34 - 36 into your own.
